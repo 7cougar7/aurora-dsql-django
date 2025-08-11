@@ -66,12 +66,39 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
     def add_index(self, model, index, concurrently=False):
         if index.contains_expressions and not self.connection.features.supports_expression_indexes:
             return None
+        
+        # Use parent implementation but it will call our overridden _create_index_sql
         super().add_index(model, index, concurrently)
 
     def remove_index(self, model, index, concurrently=False):
         if index.contains_expressions and not self.connection.features.supports_expression_indexes:
             return None
         super().remove_index(model, index, concurrently)
+
+    def _create_index_sql(self, model, fields, *, name=None, suffix="", using="",
+                         db_tablespace=None, col_suffixes=(), sql=None, opclasses=(),
+                         condition=None, concurrent=False, include=None):
+        """
+        Override to use CREATE INDEX ASYNC for Aurora DSQL compatibility.
+        """
+        # Get the standard SQL from parent class
+        sql_statement = super()._create_index_sql(
+            model, fields, name=name, suffix=suffix, using=using,
+            db_tablespace=db_tablespace, col_suffixes=col_suffixes, sql=sql,
+            opclasses=opclasses, condition=condition, concurrent=concurrent,
+            include=include
+        )
+        
+        if sql_statement:
+            # Convert to string and replace CREATE INDEX with CREATE INDEX ASYNC
+            sql_str = str(sql_statement)
+            if sql_str.startswith("CREATE INDEX"):
+                # Replace CREATE INDEX with CREATE INDEX ASYNC
+                sql_str = sql_str.replace("CREATE INDEX", "CREATE INDEX ASYNC", 1)
+                # Return the modified SQL as a string
+                return sql_str
+        
+        return sql_statement
 
     def _index_columns(self, table, columns, col_suffixes, opclasses):
         # Aurora DSQL doesn't support PostgreSQL opclasses.
