@@ -262,7 +262,7 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         """
         if self.sql_alter_column_type is None:
             # Skip if template is None (Aurora DSQL doesn't support this operation)
-            return None, []
+            return [], []
         return super()._alter_column_type_sql(model, old_field, new_field, new_type, old_collation, new_collation)
 
     def execute(self, sql, params=()):
