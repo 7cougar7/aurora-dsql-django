@@ -75,7 +75,7 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
             return None
         super().remove_index(model, index, concurrently)
 
-    def _create_index_sql(self, model, fields, *, name=None, suffix="", using="",
+    def _create_index_sql(self, model, *, fields, name=None, suffix="", using="",
                          db_tablespace=None, col_suffixes=(), sql=None, opclasses=(),
                          condition=None, concurrently=False, include=None):
         """
@@ -83,7 +83,7 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         """
         # Get the standard SQL from parent class
         sql_statement = super()._create_index_sql(
-            model, fields, name=name, suffix=suffix, using=using,
+            model, fields=fields, name=name, suffix=suffix, using=using,
             db_tablespace=db_tablespace, col_suffixes=col_suffixes, sql=sql,
             opclasses=opclasses, condition=condition, concurrently=concurrently,
             include=include
