@@ -182,8 +182,24 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
                 return
         else:
             # It's likely a Statement object or similar
-            sql_str = str(sql) if sql else ""
-            if not sql_str or not sql_str.strip():
-                return
+            # Check if it has a template attribute and if it's None or empty
+            if hasattr(sql, 'template'):
+                if sql.template is None or sql.template == "":
+                    return
+                try:
+                    sql_str = str(sql)
+                    if not sql_str or not sql_str.strip():
+                        return
+                except (TypeError, ValueError):
+                    # If str(sql) fails due to template formatting issues, skip execution
+                    return
+            else:
+                # Fallback for other object types
+                try:
+                    sql_str = str(sql) if sql else ""
+                    if not sql_str or not sql_str.strip():
+                        return
+                except (TypeError, ValueError):
+                    return
             
         super().execute(sql, params)
