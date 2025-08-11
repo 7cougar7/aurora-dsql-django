@@ -175,8 +175,15 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         """
         Override to prevent execution of empty SQL queries.
         """
-        # Skip execution if SQL is empty or whitespace-only
-        if not sql or not sql.strip():
-            return
+        # Handle both string and Statement objects
+        if hasattr(sql, 'strip'):
+            # It's a string-like object
+            if not sql or not sql.strip():
+                return
+        else:
+            # It's likely a Statement object or similar
+            sql_str = str(sql) if sql else ""
+            if not sql_str or not sql_str.strip():
+                return
             
         super().execute(sql, params)
