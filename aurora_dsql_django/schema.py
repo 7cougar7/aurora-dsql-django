@@ -232,6 +232,24 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
             self.sql_alter_column_default = original_sql_alter_column_default
             self.sql_alter_column_no_default = original_sql_alter_column_no_default
 
+    def _alter_column_null_sql(self, model, old_field, new_field):
+        """
+        Override to handle None SQL templates for Aurora DSQL limitations.
+        """
+        if self.sql_alter_column_null is None or self.sql_alter_column_not_null is None:
+            # Skip if templates are None (Aurora DSQL doesn't support these operations)
+            return None
+        return super()._alter_column_null_sql(model, old_field, new_field)
+
+    def _alter_column_default_sql(self, model, old_field, new_field):
+        """
+        Override to handle None SQL templates for Aurora DSQL limitations.
+        """
+        if self.sql_alter_column_default is None or self.sql_alter_column_no_default is None:
+            # Skip if templates are None (Aurora DSQL doesn't support these operations)
+            return None
+        return super()._alter_column_default_sql(model, old_field, new_field)
+
     def execute(self, sql, params=()):
         """
         Override to prevent execution of empty SQL queries.
