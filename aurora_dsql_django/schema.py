@@ -84,7 +84,7 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
 
     def _create_index_sql(self, model, *, fields, name=None, suffix="", using="",
                          db_tablespace=None, col_suffixes=(), sql=None, opclasses=(),
-                         condition=None, concurrently=False, include=None):
+                         condition=None, concurrently=False, include=None, expressions=None, **kwargs):
         """
         Override to use CREATE INDEX ASYNC for Aurora DSQL compatibility.
         """
@@ -93,7 +93,7 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
             model, fields=fields, name=name, suffix=suffix, using=using,
             db_tablespace=db_tablespace, col_suffixes=col_suffixes, sql=sql,
             opclasses=opclasses, condition=condition, concurrently=concurrently,
-            include=include
+            include=include, expressions=expressions, **kwargs
         )
         
         if sql_statement:
