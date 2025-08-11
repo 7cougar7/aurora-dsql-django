@@ -42,23 +42,16 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
 
     # ALTER TABLE ADD CONSTRAINT is not supported
     sql_create_unique = ""
-
-    # ALTER TABLE ADD CONSTRAINT FOREIGN KEY is not supported
     sql_create_fk = ""
-    # ALTER TABLE ADD CONSTRAINT CHECK is not supported
     sql_create_check = ""
     sql_delete_check = ""
-    # ALTER TABLE DROP CONSTRAINT is not supported
     sql_delete_constraint = ""
-    # ALTER TABLE DROP COLUMN is not supported
     sql_delete_column = ""
-    # ALTER TABLE ALTER COLUMN ... DROP NOT NULL is not supported
-    sql_alter_column_null = ""
-    sql_alter_column_not_null = ""
-    sql_alter_column_default = ""
-    sql_alter_column_no_default = ""
-    # ALTER TABLE ALTER COLUMN ... SET DATA TYPE is not supported
-    sql_alter_column_type = ""
+    sql_alter_column_null = "ALTER TABLE %(table)s ALTER COLUMN %(column)s DROP NOT NULL"
+    sql_alter_column_not_null = "ALTER TABLE %(table)s ALTER COLUMN %(column)s SET NOT NULL"
+    sql_alter_column_default = "ALTER TABLE %(table)s ALTER COLUMN %(column)s SET DEFAULT %(default)s"
+    sql_alter_column_no_default = "ALTER TABLE %(table)s ALTER COLUMN %(column)s DROP DEFAULT"
+    sql_alter_column_type = "ALTER TABLE %(table)s ALTER COLUMN %(column)s TYPE %(type)s"
 
     def __enter__(self):
         super().__enter__()
@@ -205,67 +198,6 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
             self.sql_create_unique = original_sql_create_unique
             self.sql_create_check = original_sql_create_check
 
-    def alter_field(self, model, old_field, new_field, strict=False):
-        """
-        Override to handle Aurora DSQL limitations.
-        """
-        # Store original templates
-        original_sql_alter_column_null = self.sql_alter_column_null
-        original_sql_alter_column_not_null = self.sql_alter_column_not_null
-        original_sql_alter_column_default = self.sql_alter_column_default
-        original_sql_alter_column_no_default = self.sql_alter_column_no_default
-        original_sql_alter_column_type = self.sql_alter_column_type
-        
-        try:
-            # Temporarily set None for empty templates
-            if self.sql_alter_column_null is not None and not self.sql_alter_column_null.strip():
-                self.sql_alter_column_null = None
-            if self.sql_alter_column_not_null is not None and not self.sql_alter_column_not_null.strip():
-                self.sql_alter_column_not_null = None
-            if self.sql_alter_column_default is not None and not self.sql_alter_column_default.strip():
-                self.sql_alter_column_default = None
-            if self.sql_alter_column_no_default is not None and not self.sql_alter_column_no_default.strip():
-                self.sql_alter_column_no_default = None
-            if self.sql_alter_column_type is not None and not self.sql_alter_column_type.strip():
-                self.sql_alter_column_type = None
-                
-            super().alter_field(model, old_field, new_field, strict)
-        finally:
-            # Restore original templates
-            self.sql_alter_column_null = original_sql_alter_column_null
-            self.sql_alter_column_not_null = original_sql_alter_column_not_null
-            self.sql_alter_column_default = original_sql_alter_column_default
-            self.sql_alter_column_no_default = original_sql_alter_column_no_default
-            self.sql_alter_column_type = original_sql_alter_column_type
-
-    def _alter_field(self, model, old_field, new_field, old_type, new_type,
-                     old_db_params, new_db_params, strict=False):
-        """
-        Override to handle Aurora DSQL limitations with ALTER COLUMN operations.
-        """
-        # Check if this would involve unsupported operations
-        needs_type_change = old_type != new_type
-        needs_null_change = old_field.null != new_field.null
-        needs_default_change = old_field.has_default() != new_field.has_default()
-        
-        # If any of these operations are needed but not supported, skip the entire alter
-        if needs_type_change and (self.sql_alter_column_type is None or not self.sql_alter_column_type.strip()):
-            return
-        if needs_null_change and (
-            (self.sql_alter_column_null is None or not self.sql_alter_column_null.strip()) or
-            (self.sql_alter_column_not_null is None or not self.sql_alter_column_not_null.strip())
-        ):
-            return
-        if needs_default_change and (
-            (self.sql_alter_column_default is None or not self.sql_alter_column_default.strip()) or
-            (self.sql_alter_column_no_default is None or not self.sql_alter_column_no_default.strip())
-        ):
-            return
-            
-        # If we get here, proceed with the parent implementation
-        super()._alter_field(model, old_field, new_field, old_type, new_type,
-                           old_db_params, new_db_params, strict)
-
     def column_sql(self, model, field, include_default=False):
         """
         Override to handle Aurora DSQL datatype limitations.
@@ -278,33 +210,6 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
             sql = sql.replace('inet', 'varchar(45)')
         
         return sql, params
-
-    def _alter_column_null_sql(self, model, old_field, new_field):
-        """
-        Override to handle None SQL templates for Aurora DSQL limitations.
-        """
-        if self.sql_alter_column_null is None or self.sql_alter_column_not_null is None:
-            # Skip if templates are None (Aurora DSQL doesn't support these operations)
-            return None
-        return super()._alter_column_null_sql(model, old_field, new_field)
-
-    def _alter_column_default_sql(self, model, old_field, new_field):
-        """
-        Override to handle None SQL templates for Aurora DSQL limitations.
-        """
-        if self.sql_alter_column_default is None or self.sql_alter_column_no_default is None:
-            # Skip if templates are None (Aurora DSQL doesn't support these operations)
-            return None
-        return super()._alter_column_default_sql(model, old_field, new_field)
-
-    def _alter_column_type_sql(self, model, old_field, new_field, new_type, old_collation, new_collation):
-        """
-        Override to handle None SQL templates for Aurora DSQL limitations.
-        """
-        if self.sql_alter_column_type is None:
-            # Skip if template is None (Aurora DSQL doesn't support this operation)
-            return [], []
-        return super()._alter_column_type_sql(model, old_field, new_field, new_type, old_collation, new_collation)
 
     def execute(self, sql, params=()):
         """
