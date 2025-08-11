@@ -256,14 +256,14 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
             return None
         return super()._alter_column_default_sql(model, old_field, new_field)
 
-    def _alter_column_type_sql(self, model, old_field, new_field, new_type):
+    def _alter_column_type_sql(self, model, old_field, new_field, new_type, old_collation, new_collation):
         """
         Override to handle None SQL templates for Aurora DSQL limitations.
         """
         if self.sql_alter_column_type is None:
             # Skip if template is None (Aurora DSQL doesn't support this operation)
-            return None
-        return super()._alter_column_type_sql(model, old_field, new_field, new_type)
+            return None, []
+        return super()._alter_column_type_sql(model, old_field, new_field, new_type, old_collation, new_collation)
 
     def execute(self, sql, params=()):
         """
