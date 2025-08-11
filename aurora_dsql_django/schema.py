@@ -44,14 +44,13 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
     sql_create_unique = ""
     sql_create_fk = ""
     sql_create_check = ""
-    sql_delete_check = ""
     sql_delete_constraint = ""
     sql_delete_column = ""
-    sql_alter_column_null = "ALTER TABLE %(table)s ALTER COLUMN %(column)s DROP NOT NULL"
-    sql_alter_column_not_null = "ALTER TABLE %(table)s ALTER COLUMN %(column)s SET NOT NULL"
-    sql_alter_column_default = "ALTER TABLE %(table)s ALTER COLUMN %(column)s SET DEFAULT %(default)s"
-    sql_alter_column_no_default = "ALTER TABLE %(table)s ALTER COLUMN %(column)s DROP DEFAULT"
-    sql_alter_column_type = "ALTER TABLE %(table)s ALTER COLUMN %(column)s TYPE %(type)s"
+    sql_alter_column_null = "ALTER COLUMN %(column)s DROP NOT NULL"
+    sql_alter_column_not_null = "ALTER COLUMN %(column)s SET NOT NULL"
+    sql_alter_column_default = "ALTER COLUMN %(column)s SET DEFAULT %(default)s"
+    sql_alter_column_no_default = "ALTER COLUMN %(column)s DROP DEFAULT"
+    sql_alter_column_type = "ALTER COLUMN %(column)s TYPE %(type)s"
 
     def __enter__(self):
         super().__enter__()
