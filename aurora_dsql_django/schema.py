@@ -83,3 +83,100 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         # Aurora DSQL doesn't support LIKE indexes which use postgres
         # opsclasses
         return None
+
+    def alter_unique_together(self, model, old_unique_together, new_unique_together):
+        """
+        Override to prevent execution of empty SQL queries when altering unique constraints.
+        Aurora DSQL doesn't support ALTER TABLE ADD CONSTRAINT for unique constraints.
+        """
+        # Skip if sql_create_unique is empty to avoid "can't execute an empty query" error
+        if not self.sql_create_unique.strip():
+            return
+        super().alter_unique_together(model, old_unique_together, new_unique_together)
+
+    def create_model(self, model):
+        """
+        Override to handle empty SQL templates during model creation.
+        """
+        # Store original templates
+        original_sql_create_pk = self.sql_create_pk
+        original_sql_create_unique = self.sql_create_unique
+        original_sql_create_fk = self.sql_create_fk
+        original_sql_create_check = self.sql_create_check
+        
+        try:
+            # Temporarily set non-empty values to prevent empty query execution
+            if not self.sql_create_pk.strip():
+                self.sql_create_pk = None
+            if not self.sql_create_unique.strip():
+                self.sql_create_unique = None
+            if not self.sql_create_fk.strip():
+                self.sql_create_fk = None
+            if not self.sql_create_check.strip():
+                self.sql_create_check = None
+                
+            super().create_model(model)
+        finally:
+            # Restore original templates
+            self.sql_create_pk = original_sql_create_pk
+            self.sql_create_unique = original_sql_create_unique
+            self.sql_create_fk = original_sql_create_fk
+            self.sql_create_check = original_sql_create_check
+
+    def add_constraint(self, model, constraint):
+        """
+        Override to skip constraint creation when SQL templates are empty.
+        """
+        # Check if the constraint type would use an empty SQL template
+        constraint_type = type(constraint).__name__
+        if constraint_type == 'UniqueConstraint' and not self.sql_create_unique.strip():
+            return
+        if constraint_type == 'CheckConstraint' and not self.sql_create_check.strip():
+            return
+        
+        super().add_constraint(model, constraint)
+
+    def remove_constraint(self, model, constraint):
+        """
+        Override to skip constraint removal when SQL templates are empty.
+        """
+        # Check if sql_delete_constraint is empty
+        if not self.sql_delete_constraint.strip():
+            return
+            
+        super().remove_constraint(model, constraint)
+
+    def add_field(self, model, field):
+        """
+        Override to handle foreign key and constraint creation during field addition.
+        """
+        # Store original templates
+        original_sql_create_fk = self.sql_create_fk
+        original_sql_create_unique = self.sql_create_unique
+        original_sql_create_check = self.sql_create_check
+        
+        try:
+            # Temporarily set None for empty templates
+            if not self.sql_create_fk.strip():
+                self.sql_create_fk = None
+            if not self.sql_create_unique.strip():
+                self.sql_create_unique = None
+            if not self.sql_create_check.strip():
+                self.sql_create_check = None
+                
+            super().add_field(model, field)
+        finally:
+            # Restore original templates
+            self.sql_create_fk = original_sql_create_fk
+            self.sql_create_unique = original_sql_create_unique
+            self.sql_create_check = original_sql_create_check
+
+    def execute(self, sql, params=()):
+        """
+        Override to prevent execution of empty SQL queries.
+        """
+        # Skip execution if SQL is empty or whitespace-only
+        if not sql or not sql.strip():
+            return
+            
+        super().execute(sql, params)
