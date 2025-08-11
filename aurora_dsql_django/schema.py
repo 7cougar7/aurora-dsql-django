@@ -266,6 +266,19 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         super()._alter_field(model, old_field, new_field, old_type, new_type,
                            old_db_params, new_db_params, strict)
 
+    def column_sql(self, model, field, include_default=False):
+        """
+        Override to handle Aurora DSQL datatype limitations.
+        """
+        # Get the column SQL from parent
+        sql, params = super().column_sql(model, field, include_default)
+        
+        # Replace unsupported PostgreSQL datatypes with Aurora DSQL compatible ones
+        if sql and 'inet' in sql.lower():
+            sql = sql.replace('inet', 'varchar(45)')
+        
+        return sql, params
+
     def _alter_column_null_sql(self, model, old_field, new_field):
         """
         Override to handle None SQL templates for Aurora DSQL limitations.

@@ -96,6 +96,8 @@ class DatabaseWrapper(base.DatabaseWrapper):
         BigAutoField="uuid",
         AutoField="uuid",
         DateTimeField="timestamptz",
+        # PostgreSQL inet datatype not supported in Aurora DSQL, map to varchar
+        GenericIPAddressField="varchar(45)",  # IPv6 addresses can be up to 45 chars
     )
     data_types_suffix = dict(
         base.DatabaseWrapper.data_types_suffix,
