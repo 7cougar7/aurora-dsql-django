@@ -52,6 +52,11 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
     sql_delete_constraint = ""
     # ALTER TABLE DROP COLUMN is not supported
     sql_delete_column = ""
+    # ALTER TABLE ALTER COLUMN ... DROP NOT NULL is not supported
+    sql_alter_column_null = ""
+    sql_alter_column_not_null = ""
+    sql_alter_column_default = ""
+    sql_alter_column_no_default = ""
 
     def __enter__(self):
         super().__enter__()
@@ -197,6 +202,35 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
             self.sql_create_fk = original_sql_create_fk
             self.sql_create_unique = original_sql_create_unique
             self.sql_create_check = original_sql_create_check
+
+    def alter_field(self, model, old_field, new_field, strict=False):
+        """
+        Override to handle Aurora DSQL limitations.
+        """
+        # Store original templates
+        original_sql_alter_column_null = self.sql_alter_column_null
+        original_sql_alter_column_not_null = self.sql_alter_column_not_null
+        original_sql_alter_column_default = self.sql_alter_column_default
+        original_sql_alter_column_no_default = self.sql_alter_column_no_default
+        
+        try:
+            # Temporarily set None for empty templates
+            if self.sql_alter_column_null is not None and not self.sql_alter_column_null.strip():
+                self.sql_alter_column_null = None
+            if self.sql_alter_column_not_null is not None and not self.sql_alter_column_not_null.strip():
+                self.sql_alter_column_not_null = None
+            if self.sql_alter_column_default is not None and not self.sql_alter_column_default.strip():
+                self.sql_alter_column_default = None
+            if self.sql_alter_column_no_default is not None and not self.sql_alter_column_no_default.strip():
+                self.sql_alter_column_no_default = None
+                
+            super().alter_field(model, old_field, new_field, strict)
+        finally:
+            # Restore original templates
+            self.sql_alter_column_null = original_sql_alter_column_null
+            self.sql_alter_column_not_null = original_sql_alter_column_not_null
+            self.sql_alter_column_default = original_sql_alter_column_default
+            self.sql_alter_column_no_default = original_sql_alter_column_no_default
 
     def execute(self, sql, params=()):
         """
