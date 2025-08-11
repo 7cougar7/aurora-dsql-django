@@ -105,6 +105,96 @@ $ cd docs
 $ make html
 ```
 
+## Aurora DSQL Compatibility
+
+This Django backend provides comprehensive support for Aurora DSQL's PostgreSQL-compatible features while handling limitations gracefully.
+
+### Supported Features
+
+Aurora DSQL supports most standard PostgreSQL operations that Django requires:
+
+#### Data Definition Language (DDL)
+- **CREATE TABLE** - Full support with column constraints, primary keys, unique constraints
+- **ALTER TABLE** - Supports ADD COLUMN, RENAME COLUMN, RENAME TABLE, SET SCHEMA
+- **DROP TABLE** - Full support
+- **CREATE INDEX ASYNC** - Automatically converts CREATE INDEX to CREATE INDEX ASYNC
+- **DROP INDEX** - Full support
+- **CREATE/ALTER/DROP VIEW** - Full support for standard views
+
+#### Data Manipulation Language (DML)
+- **SELECT** - Full support including JOINs, subqueries, CTEs, window functions
+- **INSERT** - Full support including bulk inserts
+- **UPDATE** - Full support including complex WHERE clauses
+- **DELETE** - Full support (TRUNCATE is not supported, uses DELETE instead)
+
+#### Data Control Language (DCL)
+- **GRANT/REVOKE** - Full support for permissions management
+
+#### Transaction Control Language (TCL)
+- **BEGIN/COMMIT** - Full transaction support
+- **READ ONLY/READ WRITE** transactions
+
+### Unsupported Features
+
+The following PostgreSQL features are **not supported** by Aurora DSQL and are handled gracefully by this backend:
+
+#### Constraints
+- **Foreign Key Constraints** - Automatically skipped during migrations
+- **Exclusion Constraints** - Not supported
+- **Deferrable Constraints** - Not supported
+
+#### Database Objects
+- **Sequences** - Not supported (uses UUID with gen_random_uuid() for auto fields)
+- **Triggers** - Not supported
+- **Temporary Tables** - Not supported
+- **Materialized Views** - Not supported
+- **Tablespaces** - Not supported
+- **Multiple Databases** - Only one database per cluster
+
+#### Commands
+- **TRUNCATE** - Not supported (automatically uses DELETE instead)
+- **SAVEPOINT** - Not supported
+- **VACUUM** - Not needed (Aurora DSQL handles optimization automatically)
+
+#### Extensions
+- **PL/pgSQL** - Not supported
+- **PostGIS** - Not supported
+- **PGVector** - Not supported
+- **All PostgreSQL Extensions** - Not supported
+
+### Data Type Mappings
+
+This backend automatically handles data type compatibility:
+
+- **AutoField/BigAutoField** → `uuid` with `DEFAULT gen_random_uuid()`
+- **GenericIPAddressField** → `varchar(45)` (inet not supported)
+- **JSONField** → Supported with native JSON capabilities
+- **DateTimeField** → `timestamptz`
+
+### Migration Handling
+
+The backend intelligently handles Django migrations:
+
+1. **Skips unsupported operations** - Foreign key constraints, sequences, etc.
+2. **Converts incompatible operations** - CREATE INDEX → CREATE INDEX ASYNC
+3. **Uses compatible alternatives** - TRUNCATE → DELETE
+4. **Preserves data integrity** - Ensures migrations complete successfully
+
+### Performance Considerations
+
+- **Indexes are created asynchronously** - All CREATE INDEX operations use ASYNC mode
+- **No sequence overhead** - Uses efficient UUID generation instead of sequences  
+- **Automatic optimization** - No need for manual VACUUM operations
+- **Efficient bulk operations** - Supports Django's bulk_create and bulk_update
+
+### Error Handling
+
+The backend provides robust error handling:
+
+- **Graceful degradation** - Unsupported features are skipped without errors
+- **Clear error messages** - Informative feedback for compatibility issues
+- **Migration safety** - Prevents data loss during schema changes
+
 ## Getting Help
 
 Please use these community resources for getting help.

@@ -23,42 +23,76 @@ from django.db.backends.postgresql import features
 
 class DatabaseFeatures(features.DatabaseFeatures):
     # Can run a DDL inside a transaction.
-    # If true, multiple DDL statement are run in same transaction.
+    # Aurora DSQL supports transactions but with limitations
     can_rollback_ddl = False
 
     # Can a fixture contain forward references? i.e., are
     # FK constraints checked at the end of transaction, or
     # at the end of each save operation?
-    supports_forward_references = True
+    supports_forward_references = False
 
     # Does it support foreign keys?
+    # Aurora DSQL explicitly does not support foreign key constraints
     supports_foreign_keys = False
 
     # Can it create foreign key constraints inline when adding columns?
     can_create_inline_fk = False
 
     # Can the backend clone databases for parallel test execution?
-    # Defaults to False to allow third-party backends to opt-in.
+    # Aurora DSQL doesn't support multiple databases on a single cluster
     can_clone_databases = False
 
     # Can constraint checks be deferred until the end of a transaction?
+    # Aurora DSQL doesn't support deferrable constraints
     can_defer_constraint_checks = False
 
     # Does the database support deferrable unique constraints?
     supports_deferrable_unique_constraints = False
 
     # Does the database have native JSON field support?
-    has_native_json_field = False
+    # Aurora DSQL supports JSON but with limitations
+    has_native_json_field = True
 
     # Can the database introspect materialized views?
+    # Aurora DSQL doesn't support materialized views
     can_introspect_materialized_views = False
 
     # Can the database rename an index?
+    # Aurora DSQL supports basic index operations
     can_rename_index = True
 
     # Does the database use savepoints for nested transactions?
+    # Aurora DSQL doesn't support SAVEPOINT command
     uses_savepoints = False
 
     # Can savepoints be released, allowing partial rollback of nested
     # transactions?
     can_release_savepoints = False
+
+    # Does the database support temporary tables?
+    # Aurora DSQL explicitly doesn't support temporary tables
+    supports_temporary_tables = False
+
+    # Does the database support sequences?
+    # Aurora DSQL doesn't support sequences
+    supports_sequences = False
+
+    # Does the database support TRUNCATE command?
+    # Aurora DSQL doesn't support TRUNCATE
+    can_truncate_fks = False
+
+    # Does the database support partial indexes?
+    # Aurora DSQL supports basic indexes but with ASYNC requirement
+    supports_partial_indexes = True
+
+    # Does the database support expression indexes?
+    # Aurora DSQL has limited expression support
+    supports_expression_indexes = False
+
+    # Does the database support covering indexes?
+    # Aurora DSQL supports basic covering indexes
+    supports_covering_indexes = True
+
+    # Does the database support tablespaces?
+    # Aurora DSQL doesn't support tablespaces
+    supports_tablespaces = False

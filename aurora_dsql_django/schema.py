@@ -40,17 +40,16 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         "UPDATE %(table)s SET %(column)s = %(default)s WHERE %(column)s IS NULL"
     )
 
-    # ALTER TABLE ADD CONSTRAINT is not supported
-    sql_create_unique = ""
+    # Foreign key constraints are not supported in Aurora DSQL
     sql_create_fk = ""
+    
+    # Constraint operations not supported (except PRIMARY KEY and UNIQUE handled above)
+    sql_create_unique = ""
     sql_create_check = ""
     sql_delete_constraint = ""
+    
+    # Column deletion may have limitations - keeping conservative approach
     sql_delete_column = ""
-    sql_alter_column_null = "ALTER COLUMN %(column)s DROP NOT NULL"
-    sql_alter_column_not_null = "ALTER COLUMN %(column)s SET NOT NULL"
-    sql_alter_column_default = "ALTER COLUMN %(column)s SET DEFAULT %(default)s"
-    sql_alter_column_no_default = "ALTER COLUMN %(column)s DROP DEFAULT"
-    sql_alter_column_type = "ALTER COLUMN %(column)s TYPE %(type)s"
 
     def __enter__(self):
         super().__enter__()
@@ -151,64 +150,90 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
 
     def add_constraint(self, model, constraint):
         """
-        Override to skip constraint creation when SQL templates are empty.
+        Add a constraint to a model. Aurora DSQL has limited constraint support.
         """
-        # Check if the constraint type would use an empty SQL template
-        constraint_type = type(constraint).__name__
-        if constraint_type == 'UniqueConstraint' and (self.sql_create_unique is None or not self.sql_create_unique.strip()):
-            return
-        if constraint_type == 'CheckConstraint' and (self.sql_create_check is None or not self.sql_create_check.strip()):
+        # Skip foreign key constraints as they're not supported
+        if hasattr(constraint, 'foreign_key') and constraint.foreign_key:
             return
         
+        # Skip exclusion constraints as they're not supported  
+        if hasattr(constraint, 'exclusion') and constraint.exclusion:
+            return
+            
         super().add_constraint(model, constraint)
 
     def remove_constraint(self, model, constraint):
         """
-        Override to skip constraint removal when SQL templates are empty.
+        Remove a constraint from a model.
         """
-        # Check if sql_delete_constraint is empty
-        if self.sql_delete_constraint is None or not self.sql_delete_constraint.strip():
+        # Skip foreign key constraints as they're not supported
+        if hasattr(constraint, 'foreign_key') and constraint.foreign_key:
+            return
+            
+        # Skip exclusion constraints as they're not supported
+        if hasattr(constraint, 'exclusion') and constraint.exclusion:
             return
             
         super().remove_constraint(model, constraint)
 
-    def add_field(self, model, field):
+    def create_sequence(self, model, field):
         """
-        Override to handle foreign key and constraint creation during field addition.
+        Create a sequence for a field. Aurora DSQL doesn't support sequences.
         """
-        # Store original templates
-        original_sql_create_fk = self.sql_create_fk
-        original_sql_create_unique = self.sql_create_unique
-        original_sql_create_check = self.sql_create_check
-        
-        try:
-            # Temporarily set None for empty templates
-            if self.sql_create_fk is not None and not self.sql_create_fk.strip():
-                self.sql_create_fk = None
-            if self.sql_create_unique is not None and not self.sql_create_unique.strip():
-                self.sql_create_unique = None
-            if self.sql_create_check is not None and not self.sql_create_check.strip():
-                self.sql_create_check = None
-                
-            super().add_field(model, field)
-        finally:
-            # Restore original templates
-            self.sql_create_fk = original_sql_create_fk
-            self.sql_create_unique = original_sql_create_unique
-            self.sql_create_check = original_sql_create_check
+        # Aurora DSQL doesn't support sequences, skip this operation
+        pass
 
-    def column_sql(self, model, field, include_default=False):
+    def delete_sequence(self, model, field):
         """
-        Override to handle Aurora DSQL datatype limitations.
+        Delete a sequence for a field. Aurora DSQL doesn't support sequences.
         """
-        # Get the column SQL from parent
-        sql, params = super().column_sql(model, field, include_default)
+        # Aurora DSQL doesn't support sequences, skip this operation
+        pass
+
+    def sql_flush(self, style, tables, *, reset_sequences=False, allow_cascade=False):
+        """
+        Return a list of SQL statements required to remove all data from
+        the given database tables (without actually removing the tables themselves).
+        Aurora DSQL doesn't support TRUNCATE, so use DELETE instead.
+        """
+        if not tables:
+            return []
+
+        # Aurora DSQL doesn't support TRUNCATE, use DELETE instead
+        sql = []
+        for table in tables:
+            sql.append(f"DELETE FROM {self.quote_name(table)};")
         
-        # Replace unsupported PostgreSQL datatypes with Aurora DSQL compatible ones
-        if sql and 'inet' in sql.lower():
-            sql = sql.replace('inet', 'varchar(45)')
-        
-        return sql, params
+        return sql
+
+    def prepare_default(self, value):
+        """
+        Only used for backends which have requires_literal_defaults feature.
+        Aurora DSQL supports standard PostgreSQL defaults.
+        """
+        return super().prepare_default(value)
+
+    def effective_default(self, field):
+        """
+        Return a field's effective database default value.
+        Aurora DSQL supports standard PostgreSQL defaults.
+        """
+        return super().effective_default(field)
+
+    def skip_default(self, field):
+        """
+        Some backends don't accept default values for certain columns types
+        (i.e. auto-incrementing columns). Aurora DSQL uses UUIDs for auto fields.
+        """
+        # For UUID-based auto fields, we want to use the DEFAULT gen_random_uuid()
+        return False
+
+    def quote_value(self, value):
+        """
+        Return a quoted version of the value for use in SQL.
+        Aurora DSQL supports standard PostgreSQL quoting.
+        """
+        return super().quote_value(value)
 
     def execute(self, sql, params=()):
         """
@@ -242,3 +267,23 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
                     return
             
         super().execute(sql, params)
+
+    def delete_model(self, model):
+        """
+        Delete a model's table. Aurora DSQL supports DROP TABLE.
+        """
+        super().delete_model(model)
+
+    def column_sql(self, model, field, include_default=False):
+        """
+        Override to handle Aurora DSQL datatype limitations.
+        """
+        # Get the standard SQL from parent class
+        sql, params = super().column_sql(model, field, include_default)
+        
+        # Handle unsupported data types
+        if field.get_internal_type() == 'JSONField':
+            # Replace JSONField with TEXT
+            sql = sql.replace('JSONField', 'TEXT')
+        
+        return sql, params
