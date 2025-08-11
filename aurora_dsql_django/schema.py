@@ -90,7 +90,7 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         Aurora DSQL doesn't support ALTER TABLE ADD CONSTRAINT for unique constraints.
         """
         # Skip if sql_create_unique is empty to avoid "can't execute an empty query" error
-        if not self.sql_create_unique.strip():
+        if self.sql_create_unique is None or not self.sql_create_unique.strip():
             return
         super().alter_unique_together(model, old_unique_together, new_unique_together)
 
@@ -105,14 +105,14 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         original_sql_create_check = self.sql_create_check
         
         try:
-            # Temporarily set non-empty values to prevent empty query execution
-            if not self.sql_create_pk.strip():
+            # Temporarily set None for empty templates to prevent empty query execution
+            if self.sql_create_pk is not None and not self.sql_create_pk.strip():
                 self.sql_create_pk = None
-            if not self.sql_create_unique.strip():
+            if self.sql_create_unique is not None and not self.sql_create_unique.strip():
                 self.sql_create_unique = None
-            if not self.sql_create_fk.strip():
+            if self.sql_create_fk is not None and not self.sql_create_fk.strip():
                 self.sql_create_fk = None
-            if not self.sql_create_check.strip():
+            if self.sql_create_check is not None and not self.sql_create_check.strip():
                 self.sql_create_check = None
                 
             super().create_model(model)
@@ -129,9 +129,9 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         """
         # Check if the constraint type would use an empty SQL template
         constraint_type = type(constraint).__name__
-        if constraint_type == 'UniqueConstraint' and not self.sql_create_unique.strip():
+        if constraint_type == 'UniqueConstraint' and (self.sql_create_unique is None or not self.sql_create_unique.strip()):
             return
-        if constraint_type == 'CheckConstraint' and not self.sql_create_check.strip():
+        if constraint_type == 'CheckConstraint' and (self.sql_create_check is None or not self.sql_create_check.strip()):
             return
         
         super().add_constraint(model, constraint)
@@ -141,7 +141,7 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         Override to skip constraint removal when SQL templates are empty.
         """
         # Check if sql_delete_constraint is empty
-        if not self.sql_delete_constraint.strip():
+        if self.sql_delete_constraint is None or not self.sql_delete_constraint.strip():
             return
             
         super().remove_constraint(model, constraint)
@@ -157,11 +157,11 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         
         try:
             # Temporarily set None for empty templates
-            if not self.sql_create_fk.strip():
+            if self.sql_create_fk is not None and not self.sql_create_fk.strip():
                 self.sql_create_fk = None
-            if not self.sql_create_unique.strip():
+            if self.sql_create_unique is not None and not self.sql_create_unique.strip():
                 self.sql_create_unique = None
-            if not self.sql_create_check.strip():
+            if self.sql_create_check is not None and not self.sql_create_check.strip():
                 self.sql_create_check = None
                 
             super().add_field(model, field)
